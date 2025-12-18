@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 import numpy as np
+import pickle
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -13,6 +14,7 @@ from sklearn.metrics import (
     accuracy_score, confusion_matrix, classification_report, 
     roc_curve, auc, precision_score, recall_score
 )
+from sklearn.inspection import permutation_importance
 
 # ===============================
 # 1. KONFIGURASI HALAMAN
@@ -22,6 +24,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+st.markdown("""
+    <style>
+    .stMetric {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    div.block-container {
+        padding-top: 2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 FILE_DEFAULT = "data_diabetes.xlsx" 
 
@@ -47,10 +62,8 @@ def load_data(uploaded_file):
 # ===============================
 # 3. SIDEBAR
 # ===============================
-st.sidebar.markdown("<h2 style='text-align:center;'>🩺 SVM Ultimate</h2>", unsafe_allow_html=True)
-st.sidebar.divider()
+st.sidebar.markdown("<h2 style='text-align:center;'>🩺 Kelompok 5 Data Science</h2>", unsafe_allow_html=True)
 
-st.sidebar.header("📂 Panel Data")
 uploaded_file = st.sidebar.file_uploader("Upload Data", type=["csv", "xlsx", "xls"])
 
 if uploaded_file is not None:
@@ -59,7 +72,7 @@ if uploaded_file is not None:
 else:
     try:
         df = pd.read_excel(FILE_DEFAULT) 
-        sumber_data = "Data Demo"
+        sumber_data = "Data Diabetes"
     except:
         df = None
         sumber_data = "Kosong"
@@ -71,9 +84,8 @@ if df is not None:
 else:
     st.sidebar.warning(f"⚠️ File '{FILE_DEFAULT}' tidak ditemukan.")
 
-st.sidebar.divider()
 menu = st.sidebar.radio(
-    "📌 Tahapan Analisis",
+    "Tahapan Analisis",
     ["📘 Business Understanding", "📊 Data Understanding", "🧹 Preprocessing", "🤖 Modeling", "📈 Evaluasi"]
 )
 
@@ -107,10 +119,8 @@ elif menu == "📊 Data Understanding":
     st.title("📊 Data Understanding")
 
     if df is not None:
-        # Gunakan Tabs untuk memisahkan Statistik Detail dan Grafik
         tab1, tab2, tab3 = st.tabs(["📄 Statistik Detail", "📊 Visualisasi Distribusi", "🔥 Korelasi"])
 
-        # --- TAB 1: Detail Angka (Penting buat Dosen) ---
         with tab1:
             st.subheader("1. Cuplikan Data")
             st.dataframe(df.head())
@@ -119,15 +129,13 @@ elif menu == "📊 Data Understanding":
             col1, col2 = st.columns(2)
             col1.metric("Jumlah Baris", df.shape[0])
             col2.metric("Jumlah Kolom", df.shape[1])
-            
-            # Info Tipe Data
+
             buffer = io.StringIO()
             df.info(buf=buffer)
-            with st.expander("Lihat Detail Info (df.info())"):
+            with st.expander("Detail Info"):
                 st.text(buffer.getvalue())
 
             st.subheader("3. Nilai Unik & Statistik")
-            # Tabel Nilai Unik
             unique_df = pd.DataFrame({
                 "Nama Kolom": df.columns,
                 "Tipe Data": df.dtypes.astype(str),
@@ -136,19 +144,18 @@ elif menu == "📊 Data Understanding":
             })
             st.dataframe(unique_df, use_container_width=True)
 
-            st.subheader("4. Statistik Deskriptif (Rata-rata, Std, dll)")
+            st.subheader("4. Statistik Deskriptif")
             st.dataframe(df.describe())
 
-        # --- TAB 2: Visualisasi ---
         with tab2:
-            st.subheader("Distribusi Data (Histogram)")
+            st.subheader("Distribusi Data")
             numeric_cols = df.select_dtypes(include=np.number).columns
             sel_col = st.selectbox("Pilih Kolom:", numeric_cols)
             
             c1, c2 = st.columns(2)
             with c1:
                 fig, ax = plt.subplots()
-                sns.histplot(df[sel_col], kde=True, ax=ax, color="blue")
+                sns.histplot(df[sel_col], kde=True, ax=ax, color="red")
                 ax.set_title(f"Histogram {sel_col}")
                 st.pyplot(fig)
             with c2:
@@ -159,7 +166,7 @@ elif menu == "📊 Data Understanding":
             
             st.divider()
             # Pie Chart Target
-            st.subheader("Proporsi Target (Imbalance Check)")
+            st.subheader("Proporsi Target")
             # Coba cari kolom target otomatis
             possible_target = 'Outcome' if 'Outcome' in df.columns else df.columns[-1]
             target_counts = df[possible_target].value_counts()
@@ -168,7 +175,13 @@ elif menu == "📊 Data Understanding":
             ax3.pie(target_counts, labels=target_counts.index, autopct='%1.1f%%', colors=['#ff9999','#66b3ff'])
             st.pyplot(fig3)
 
-        # --- TAB 3: Korelasi ---
+            st.write(f"**Violin Plot {sel_col}**")
+            fig2, ax2 = plt.subplots()
+                # Violin plot itu gabungan Boxplot + Histogram, bentuknya kayak biola
+            sns.violinplot(y=df[sel_col], color="cyan", ax=ax2)
+            ax2.set_title(f"Kepadatan Data {sel_col}")
+            st.pyplot(fig2)
+
         with tab3:
             st.subheader("Heatmap Korelasi")
             if len(numeric_cols) > 1:
@@ -181,7 +194,7 @@ elif menu == "📊 Data Understanding":
         st.error("Data belum dimuat.")
 
 # ===============================
-# C. PREPROCESSING (PERBAIKAN: AUTO-FILTER NON-NUMERIC)
+# C. PREPROCESSING
 # ===============================
 elif menu == "🧹 Preprocessing":
     st.title("🧹 Data Preprocessing")
@@ -190,8 +203,6 @@ elif menu == "🧹 Preprocessing":
         st.warning("⚠️ Data belum ada. Silakan upload di Data Understanding.")
     else:
         data = st.session_state["data"].copy()
-        
-        # 1. Cek Data Non-Numerik (Penyebab Error)
         all_cols = data.columns
         numeric_cols = data.select_dtypes(include=np.number).columns
         non_numeric_cols = list(set(all_cols) - set(numeric_cols))
@@ -201,8 +212,7 @@ elif menu == "🧹 Preprocessing":
         c1.metric("Missing Value", data.isnull().sum().sum())
         c2.metric("Duplikat", data.duplicated().sum())
         c3.metric("Kolom Non-Angka", len(non_numeric_cols))
-        
-        # Tampilkan peringatan jika ada kolom teks
+
         if len(non_numeric_cols) > 0:
             st.warning(f"⚠️ Ditemukan kolom Teks yang tidak bisa diproses SVM: {non_numeric_cols}")
             st.info("Sistem akan otomatis mengabaikan kolom tersebut saat modeling.")
@@ -210,7 +220,6 @@ elif menu == "🧹 Preprocessing":
         st.divider()
         st.subheader("2. Penanganan Outlier (IQR Capping)")
 
-        # --- HITUNG OUTLIER SEBELUM ---
         outlier_before = {}
         for col in numeric_cols:
             Q1 = data[col].quantile(0.25)
@@ -218,7 +227,6 @@ elif menu == "🧹 Preprocessing":
             IQR = Q3 - Q1
             outlier_before[col] = ((data[col] < (Q1 - 1.5*IQR)) | (data[col] > (Q3 + 1.5*IQR))).sum()
         
-        # --- PROSES CAPPING ---
         capped_data = data.copy()
         for col in numeric_cols:
             Q1 = capped_data[col].quantile(0.25)
@@ -229,7 +237,6 @@ elif menu == "🧹 Preprocessing":
             capped_data[col] = np.where(capped_data[col] < lower, lower, 
                                np.where(capped_data[col] > upper, upper, capped_data[col]))
 
-        # --- TAMPILKAN TABEL PERBANDINGAN JUMLAH OUTLIER ---
         st.write("**Jumlah Outlier Terdeteksi (Sebelum vs Sesudah):**")
         compare_df = pd.DataFrame({
             "Kolom": outlier_before.keys(),
@@ -238,7 +245,6 @@ elif menu == "🧹 Preprocessing":
         })
         st.dataframe(compare_df.T)
 
-        # --- VISUALISASI PERBANDINGAN ---
         st.write("**Visualisasi Perubahan (Before vs After):**")
         col_viz = st.selectbox("Pilih Fitur:", numeric_cols)
         
@@ -256,24 +262,15 @@ elif menu == "🧹 Preprocessing":
 
         st.divider()
         st.subheader("3. Pemisahan Fitur & Target")
-        
-        # Auto-detect Target
-        # PERBAIKAN: Pastikan pilihan target juga mencakup kolom teks (siapa tau targetnya teks kayak 'Yes'/'No')
         target_col = st.selectbox("Pilih Kolom Target (Label):", all_cols, index=len(all_cols)-1)
 
         if st.button("Simpan Data & Lanjut Modeling"):
-            # PERBAIKAN CRITICAL: FILTER HANYA ANGKA UNTUK FITUR (X)
-            # 1. Pisahkan X sementara
             X_temp = capped_data.drop(columns=[target_col])
-            
-            # 2. Ambil HANYA kolom angka dari X
+
             X = X_temp.select_dtypes(include=[np.number])
-            
-            # 3. Ambil y
+
             y = capped_data[target_col]
 
-            # 4. Validasi y (Target)
-            # Jika targetnya teks (misal "Positif"/"Negatif"), kita ubah jadi angka 1/0
             if y.dtype == 'object':
                 try:
                     y = y.astype('category').cat.codes
@@ -281,7 +278,6 @@ elif menu == "🧹 Preprocessing":
                 except:
                     pass
             else:
-                # Jika target angka tapi float, bulatkan jadi int biar aman buat klasifikasi
                 try: y = y.astype(int)
                 except: pass
 
@@ -291,6 +287,20 @@ elif menu == "🧹 Preprocessing":
             
             st.success(f"✅ Data tersimpan! Kolom teks pada fitur (X) otomatis dibuang agar tidak error.")
             st.write(f"Fitur yang dipakai ({X.shape[1]} kolom): {list(X.columns)}")
+
+            # Mengubah dataframe jadi file Excel di memori
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                capped_data.to_excel(writer, index=False, sheet_name='Sheet1')
+            processed_data = output.getvalue()
+
+            st.download_button(
+                label="📥 Download Data Bersih (Excel)",
+                data=processed_data,
+                file_name="data_clean_diabetes.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
 # ===============================
 # D. MODELING
 # ===============================
@@ -303,7 +313,6 @@ elif menu == "🤖 Modeling":
         X = st.session_state['X']
         y = st.session_state['y']
 
-        # --- PENGATURAN PARAMETER ---
         with st.expander("⚙️ Konfigurasi Parameter Model", expanded=True):
             col_p1, col_p2 = st.columns(2)
             with col_p1: 
@@ -435,6 +444,33 @@ elif menu == "📈 Evaluasi":
             report_df = pd.DataFrame(report_dict).transpose()
             st.dataframe(report_df.style.background_gradient(cmap='Blues'))
 
+        # --- MULAI KODE BARU (FEATURE IMPORTANCE) ---
+        st.divider()
+        st.subheader("2. Faktor Paling Berpengaruh")
+        
+        # Kita pakai spinner karena hitungannya agak berat dikit
+        with st.spinner("Menghitung Feature Importance..."):
+            # Hitung tingkat kepentingan fitur
+            results = permutation_importance(model, X_test_scaled, y_test, scoring='accuracy')
+            importance = results.importances_mean
+            
+            # Ambil nama kolom dari data X asli
+            feature_names = X_test_raw.columns
+            
+            # Buat DataFrame biar mudah di-plot
+            imp_df = pd.DataFrame({
+                'Fitur': feature_names,
+                'Importance': importance
+            }).sort_values(by='Importance', ascending=False)
+            
+            # Gambar Grafik Batang
+            fig_imp, ax_imp = plt.subplots(figsize=(8, 5))
+            sns.barplot(data=imp_df, x='Importance', y='Fitur', palette='magma', ax=ax_imp)
+            ax_imp.set_title("Tingkat Kepentingan Fitur")
+            ax_imp.set_xlabel("Nilai Importance")
+            st.pyplot(fig_imp)
+        # --- SELESAI KODE BARU ---
+
         # 3. GRAFIK LANJUTAN (ROC & PAIRPLOT)
         st.divider()
         tab_e1, tab_e2 = st.tabs(["📈 ROC Curve", "🔍 Pairplot (Sebaran)"])
@@ -458,11 +494,9 @@ elif menu == "📈 Evaluasi":
 
         with tab_e2:
             st.write("Pairplot memvisualisasikan hubungan antar fitur pada data Test.")
-            # Gabungkan X_test dan y_test untuk pairplot
             viz_data = X_test_raw.copy()
             viz_data['Target'] = y_test.values
-            
-            # Batasi kolom jika terlalu banyak agar tidak berat
+
             if viz_data.shape[1] > 6:
                 st.warning("Fitur terlalu banyak, menampilkan 5 fitur pertama saja.")
                 viz_cols = viz_data.columns[:5].tolist() + ['Target']
