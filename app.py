@@ -177,7 +177,6 @@ elif menu == "📊 Data Understanding":
 
             st.write(f"**Violin Plot {sel_col}**")
             fig2, ax2 = plt.subplots()
-                # Violin plot itu gabungan Boxplot + Histogram, bentuknya kayak biola
             sns.violinplot(y=df[sel_col], color="cyan", ax=ax2)
             ax2.set_title(f"Kepadatan Data {sel_col}")
             st.pyplot(fig2)
@@ -316,7 +315,7 @@ elif menu == "🤖 Modeling":
         with st.expander("⚙️ Konfigurasi Parameter Model", expanded=True):
             col_p1, col_p2 = st.columns(2)
             with col_p1: 
-                test_size = st.slider("Ukuran Data Test (%)", 10, 50, 20) / 100
+                test_size = st.slider("Ukuran Data Test (%)", 10, 100, 50) / 100
                 st.caption("Semakin besar, data latih semakin sedikit.")
             with col_p2: 
                 kernel = st.selectbox("Kernel SVM", ["linear", "rbf", "poly", "sigmoid"])
