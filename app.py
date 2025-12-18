@@ -315,7 +315,7 @@ elif menu == "🤖 Modeling":
         with st.expander("⚙️ Konfigurasi Parameter Model", expanded=True):
             col_p1, col_p2 = st.columns(2)
             with col_p1: 
-                test_size = st.slider("Ukuran Data Test (%)", 10, 100, 50) / 100
+                test_size = st.slider("Ukuran Data Test (%)", 10, 90, 40) / 100
                 st.caption("Semakin besar, data latih semakin sedikit.")
             with col_p2: 
                 kernel = st.selectbox("Kernel SVM", ["linear", "rbf", "poly", "sigmoid"])
