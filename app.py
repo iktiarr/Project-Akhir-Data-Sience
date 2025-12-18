@@ -77,7 +77,7 @@ if menu == "📘 Business Understanding":
 elif menu == "📊 Data Understanding":
     st.title("📊 Data Understanding")
 
-    file = st.file_uploader("📂 Upload Dataset Diabetes (CSV)", type=["csv"])
+    file = st.file_uploader("📂 Upload Dataset Diabetes (CSV)", type=["xlsx", "csv"])
 
     if file is not None:
         data = pd.read_csv(file, sep=";")
