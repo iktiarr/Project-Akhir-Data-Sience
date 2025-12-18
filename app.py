@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io
+import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -17,12 +19,12 @@ st.set_page_config(
 )
 
 # ===============================
-# SIDEBAR NAVIGASI
+# SIDEBAR
 # ===============================
 st.sidebar.markdown(
     """
     <h2 style='text-align:center;'>🩺 SVM Diabetes</h2>
-    <p style='text-align:center;color:gray;'>Data Science Dashboard</p>
+    <p style='text-align:center;color:gray;'>CRISP-DM Dashboard</p>
     """,
     unsafe_allow_html=True
 )
@@ -30,107 +32,237 @@ st.sidebar.markdown(
 st.sidebar.divider()
 
 menu = st.sidebar.radio(
-    "📌 Navigasi",
+    "📌 Tahapan Analisis",
     [
-        "🏠 Dashboard Utama",
-        "🤖 Training & Evaluasi SVM",
-        "✍️ Prediksi Manual"
+        "📘 Business Understanding",
+        "📊 Data Understanding",
+        "🧹 Preprocessing",
+        "🤖 Modeling",
+        "📈 Evaluasi"
     ]
 )
 
 st.sidebar.divider()
-st.sidebar.markdown("<small>Dibuat untuk tugas Data Science</small>", unsafe_allow_html=True)
+st.sidebar.caption("Tugas Data Science")
 
 # ===============================
-# DASHBOARD UTAMA
+# BUSINESS UNDERSTANDING
 # ===============================
-if menu == "🏠 Dashboard Utama":
-    st.title("🩺 Dashboard Klasifikasi Diabetes")
-    st.write("""
-    Dashboard ini menggunakan **Support Vector Machine (SVM)**  
-    untuk melakukan klasifikasi penyakit diabetes.
-    """)
+if menu == "📘 Business Understanding":
+    st.title("📘 Business Understanding")
 
     st.markdown("""
-    ### 🎯 Tujuan
-    - Melatih model SVM
-    - Evaluasi performa model
-    - Prediksi diabetes pasien baru
+    ### 🎯 Latar Belakang
+    Diabetes merupakan penyakit kronis yang membutuhkan deteksi dini.
+    Pemanfaatan **Machine Learning** diharapkan mampu membantu proses
+    diagnosis secara cepat dan akurat.
 
-    ### 🧭 Alur
-    1️⃣ Upload dataset  
-    2️⃣ Training & evaluasi  
-    3️⃣ Prediksi manual
+    ### 🎯 Tujuan
+    - Menganalisis data diabetes
+    - Membangun model klasifikasi menggunakan **SVM**
+    - Mengevaluasi performa model
+
+    ### 🧭 Metodologi
+    Penelitian ini menggunakan pendekatan **CRISP-DM**:
+    1. Business Understanding  
+    2. Data Understanding  
+    3. Preprocessing  
+    4. Modeling  
+    5. Evaluasi
     """)
 
-    st.info("Silakan pilih menu **🤖 Training & Evaluasi SVM** untuk memulai.")
-
 # ===============================
-# TRAINING & EVALUASI
+# DATA UNDERSTANDING
 # ===============================
-elif menu == "🤖 Training & Evaluasi SVM":
-    st.title("🤖 Training & Evaluasi Model SVM")
+elif menu == "📊 Data Understanding":
+    st.title("📊 Data Understanding")
 
     file = st.file_uploader("📂 Upload Dataset Diabetes (CSV)", type=["csv"])
 
     if file is not None:
         data = pd.read_csv(file, sep=";")
+        st.session_state["data"] = data
 
         # ===============================
         # PREVIEW DATA
         # ===============================
         st.subheader("🔍 Preview Dataset")
-        st.dataframe(data.head())
-        st.write("Jumlah data:", data.shape[0])
-        st.write("Jumlah fitur:", data.shape[1])
+        st.dataframe(data)
 
         # ===============================
-        # VISUALISASI KORELASI
+        # JUMLAH BARIS & KOLOM
         # ===============================
-        st.subheader("📊 Korelasi Antar Atribut")
-
-        corr = data.corr()
-        fig_corr, ax_corr = plt.subplots(figsize=(10, 6))
-        sns.heatmap(
-            corr,
-            annot=True,
-            fmt=".2f",
-            cmap="coolwarm",
-            linewidths=0.5,
-            ax=ax_corr
-        )
-        st.pyplot(fig_corr)
+        st.subheader("📐 Ukuran Dataset")
+        col1, col2 = st.columns(2)
+        col1.metric("Jumlah Baris", data.shape[0])
+        col2.metric("Jumlah Kolom", data.shape[1])
 
         # ===============================
-        # PAIRPLOT ATRIBUT UTAMA
+        # INFO DATA
         # ===============================
-        st.subheader("🔍 Pairplot Antar Atribut Utama")
-
-        selected_features = ["Glucose", "BMI", "Age", "Insulin"]
-        pairplot_data = data[selected_features + [data.columns[-1]]]
-
-        fig_pair = sns.pairplot(
-            pairplot_data,
-            hue=data.columns[-1],
-            diag_kind="kde"
-        )
-        st.pyplot(fig_pair)
+        st.subheader("ℹ️ Informasi Dataset (data.info())")
+        buffer = io.StringIO()
+        data.info(buf=buffer)
+        st.text(buffer.getvalue())
 
         # ===============================
-        # PEMISAHAN FITUR & TARGET
+        # NILAI UNIK
         # ===============================
+        st.subheader("🔢 Nilai Unik Setiap Kolom")
+        unique_df = pd.DataFrame({
+            "Kolom": data.columns,
+            "Jumlah Nilai Unik": [data[col].nunique() for col in data.columns]
+        })
+        st.dataframe(unique_df)
+
+        # ===============================
+        # DESKRIPSI DATA
+        # ===============================
+        st.subheader("📊 Statistik Deskriptif (data.describe())")
+        st.dataframe(data.describe())
+
+        # ===============================
+        # KORELASI
+        # ===============================
+        st.subheader("📈 Korelasi Antar Atribut")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.heatmap(data.corr(), annot=True, cmap="coolwarm", ax=ax)
+        st.pyplot(fig)
+
+    else:
+        st.info("Silakan upload dataset untuk melihat Data Understanding.")
+
+# ===============================
+# PREPROCESSING
+# ===============================
+elif menu == "🧹 Preprocessing":
+    st.title("🧹 Data Preprocessing")
+
+    if "data" not in st.session_state:
+        st.warning("⚠️ Silakan upload dataset terlebih dahulu.")
+    else:
+        data = st.session_state["data"]
+        numeric_cols = data.select_dtypes(include=np.number).columns
+
+        # ===============================
+        # MISSING VALUE & DUPLIKAT
+        # ===============================
+        st.subheader("🧾 Pemeriksaan Kualitas Data")
+
+        col1, col2 = st.columns(2)
+        col1.metric("Missing Value", data.isnull().sum().sum())
+        col2.metric("Data Duplikat", data.duplicated().sum())
+
+        # ===============================
+        # HITUNG OUTLIER (IQR)
+        # ===============================
+        st.subheader("🚨 Deteksi Outlier (Metode IQR)")
+
+        outlier_count = {}
+        for col in numeric_cols:
+            Q1 = data[col].quantile(0.25)
+            Q3 = data[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
+            outlier_count[col] = ((data[col] < lower) | (data[col] > upper)).sum()
+
+        st.dataframe(pd.DataFrame.from_dict(
+            outlier_count, orient="index", columns=["Jumlah Outlier"]
+        ))
+
+        # ===============================
+        # BOXPLOT SEBELUM
+        # ===============================
+        st.subheader("📦 Boxplot Sebelum Penanganan Outlier")
+        fig1, ax1 = plt.subplots(figsize=(10, 5))
+        sns.boxplot(data=data[numeric_cols], ax=ax1)
+        ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45)
+        st.pyplot(fig1)
+
+        # ===============================
+        # PENJELASAN IQR CAPPING
+        # ===============================
+        st.subheader("🧮 Metode IQR Capping")
+
+        st.markdown("""
+        **Langkah perhitungan IQR Capping:**
+        1. Hitung Kuartil 1 (Q1) dan Kuartil 3 (Q3)
+        2. Hitung IQR = Q3 − Q1
+        3. Tentukan batas:
+           - Batas bawah = Q1 − 1.5 × IQR  
+           - Batas atas = Q3 + 1.5 × IQR
+        4. Nilai di luar batas diganti (capping) dengan nilai batas terdekat
+        """)
+
+        # ===============================
+        # PROSES IQR CAPPING
+        # ===============================
+        capped_data = data.copy()
+
+        for col in numeric_cols:
+            Q1 = capped_data[col].quantile(0.25)
+            Q3 = capped_data[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
+
+            capped_data[col] = np.where(
+                capped_data[col] < lower, lower,
+                np.where(capped_data[col] > upper, upper, capped_data[col])
+            )
+
+        st.session_state["clean_data"] = capped_data
+
+        # ===============================
+        # OUTLIER SETELAH
+        # ===============================
+        st.subheader("✅ Outlier Setelah IQR Capping")
+
+        after_outlier = {}
+        for col in numeric_cols:
+            Q1 = capped_data[col].quantile(0.25)
+            Q3 = capped_data[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
+            after_outlier[col] = ((capped_data[col] < lower) | (capped_data[col] > upper)).sum()
+
+        st.dataframe(pd.DataFrame.from_dict(
+            after_outlier, orient="index", columns=["Jumlah Outlier"]
+        ))
+
+        # ===============================
+        # BOXPLOT SESUDAH
+        # ===============================
+        st.subheader("📦 Boxplot Setelah Penanganan Outlier")
+        fig2, ax2 = plt.subplots(figsize=(10, 5))
+        sns.boxplot(data=capped_data[numeric_cols], ax=ax2)
+        ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45)
+        st.pyplot(fig2)
+
+        st.success("✅ Preprocessing selesai & data siap untuk modeling")
+
+# ===============================
+# MODELING
+# ===============================
+elif menu == "🤖 Modeling":
+    st.title("🤖 Modeling SVM")
+
+    if "clean_data" not in st.session_state:
+        st.warning("⚠️ Lakukan preprocessing terlebih dahulu.")
+    else:
+        data = st.session_state["clean_data"]
+
         X = data.iloc[:, :-1]
         y = data.iloc[:, -1]
 
-        # ===============================
-        # PARAMETER MODEL
-        # ===============================
-        st.sidebar.subheader("⚙️ Parameter Model")
-        kernel = st.sidebar.selectbox("Kernel SVM", ["linear", "rbf", "poly"])
-        test_size = st.sidebar.slider("Porsi Data Uji", 0.1, 0.4, 0.2)
+        st.subheader("⚙️ Parameter Modeling")
+        test_size = st.slider("Porsi Data Uji", 0.1, 0.4, 0.2)
+        kernel = st.selectbox("Kernel SVM", ["linear", "rbf", "poly"])
 
         # ===============================
-        # PREPROCESSING
+        # SPLIT DATA
         # ===============================
         X_train, X_test, y_train, y_test = train_test_split(
             X, y,
@@ -139,6 +271,29 @@ elif menu == "🤖 Training & Evaluasi SVM":
             stratify=y
         )
 
+        st.subheader("📐 Hasil Pembagian Data")
+        col1, col2 = st.columns(2)
+        col1.metric("Data Train", X_train.shape[0])
+        col2.metric("Data Test", X_test.shape[0])
+
+        # ===============================
+        # TAMPILKAN DATA
+        # ===============================
+        st.subheader("📄 X_train")
+        st.dataframe(X_train.head())
+
+        st.subheader("📄 X_test")
+        st.dataframe(X_test.head())
+
+        st.subheader("🎯 y_train")
+        st.dataframe(y_train.head())
+
+        st.subheader("🎯 y_test")
+        st.dataframe(y_test.head())
+
+        # ===============================
+        # SCALING
+        # ===============================
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
@@ -148,73 +303,90 @@ elif menu == "🤖 Training & Evaluasi SVM":
         # ===============================
         model = SVC(kernel=kernel)
         model.fit(X_train_scaled, y_train)
+
         y_pred = model.predict(X_test_scaled)
 
-        # ===============================
-        # EVALUASI MODEL
-        # ===============================
-        st.subheader("📈 Evaluasi Model")
+        st.session_state.update({
+        "model": model,
+        "X_test": X_test_scaled,
+        "y_test": y_test,
+        "y_pred": y_pred
+        })
 
+        st.success("✅ Model SVM berhasil dibangun")
+
+# ===============================
+# EVALUASI
+# ===============================
+elif menu == "📈 Evaluasi":
+    st.title("📈 Evaluasi Model SVM")
+
+    required_keys = ["model", "X_test", "y_test", "clean_data"]
+
+    if not all(k in st.session_state for k in required_keys):
+        st.warning("⚠️ Silakan selesaikan tahap Modeling terlebih dahulu.")
+    else:
+        model = st.session_state["model"]
+        X_test = st.session_state["X_test"]
+        y_test = st.session_state["y_test"]
+        data = st.session_state["clean_data"]
+
+        # ===============================
+        # PREDIKSI
+        # ===============================
+        y_pred = model.predict(X_test)
+
+        # ===============================
+        # AKURASI
+        # ===============================
+        st.subheader("🎯 Akurasi Model")
         acc = accuracy_score(y_test, y_pred)
-        st.metric("Akurasi Model", f"{acc:.2f}")
+        st.metric("Accuracy", f"{acc:.4f}")
 
+        # ===============================
+        # CONFUSION MATRIX
+        # ===============================
+        st.subheader("📊 Confusion Matrix")
         cm = confusion_matrix(y_test, y_pred)
-        fig_cm, ax_cm = plt.subplots()
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax_cm)
+
+        fig_cm, ax_cm = plt.subplots(figsize=(5, 4))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            cbar=False,
+            ax=ax_cm
+        )
         ax_cm.set_xlabel("Prediksi")
         ax_cm.set_ylabel("Aktual")
         st.pyplot(fig_cm)
 
-        st.text(classification_report(y_test, y_pred))
+        # ===============================
+        # CLASSIFICATION REPORT
+        # ===============================
+        st.subheader("📄 Classification Report")
+        report = classification_report(
+            y_test,
+            y_pred,
+            output_dict=True
+        )
+        st.dataframe(pd.DataFrame(report).transpose())
 
         # ===============================
-        # SIMPAN KE SESSION
+        # PAIRPLOT
         # ===============================
-        st.session_state["model"] = model
-        st.session_state["scaler"] = scaler
-        st.session_state["columns"] = X.columns
+        st.subheader("🔍 Pairplot Antar Atribut Utama")
 
-        st.success("✅ Model berhasil dilatih & siap digunakan!")
+        target_col = data.columns[-1]
+        fitur_utama = data.columns[:-1][:4]
 
-    else:
-        st.info("Upload dataset terlebih dahulu.")
+        pairplot_data = data[list(fitur_utama) + [target_col]]
 
-# ===============================
-# PREDIKSI MANUAL
-# ===============================
-elif menu == "✍️ Prediksi Manual":
-    st.title("✍️ Prediksi Diabetes (Input Manual)")
+        fig_pair = sns.pairplot(
+            pairplot_data,
+            hue=target_col,
+            diag_kind="kde"
+        )
 
-    if "model" not in st.session_state:
-        st.warning("⚠️ Silakan training model terlebih dahulu.")
-    else:
-        col1, col2 = st.columns(2)
-
-        with col1:
-            pregnancies = st.number_input("Pregnancies", 0, 20, 1)
-            glucose = st.number_input("Glucose", 0, 200, 120)
-            blood_pressure = st.number_input("Blood Pressure", 0, 150, 70)
-            skin_thickness = st.number_input("Skin Thickness", 0, 100, 20)
-
-        with col2:
-            insulin = st.number_input("Insulin", 0, 900, 80)
-            bmi = st.number_input("BMI", 0.0, 70.0, 25.0)
-            dpf = st.number_input("Diabetes Pedigree Function", 0.0, 3.0, 0.5)
-            age = st.number_input("Age", 1, 100, 30)
-
-        if st.button("🔍 Prediksi"):
-            input_df = pd.DataFrame([[
-                pregnancies, glucose, blood_pressure,
-                skin_thickness, insulin, bmi, dpf, age
-            ]], columns=st.session_state["columns"])
-
-            scaler = st.session_state["scaler"]
-            model = st.session_state["model"]
-
-            input_scaled = scaler.transform(input_df)
-            prediction = model.predict(input_scaled)[0]
-
-            if prediction == 1:
-                st.error("⚠️ HASIL: POSITIF DIABETES")
-            else:
-                st.success("✅ HASIL: NEGATIF DIABETES")
+        st.pyplot(fig_pair)
