@@ -181,25 +181,34 @@ elif menu == "📊 Data Understanding":
         st.error("Data belum dimuat.")
 
 # ===============================
-# C. PREPROCESSING
+# C. PREPROCESSING (PERBAIKAN: AUTO-FILTER NON-NUMERIC)
 # ===============================
 elif menu == "🧹 Preprocessing":
     st.title("🧹 Data Preprocessing")
 
     if "data" not in st.session_state:
-        st.warning("⚠️ Data belum ada.")
+        st.warning("⚠️ Data belum ada. Silakan upload di Data Understanding.")
     else:
         data = st.session_state["data"].copy()
+        
+        # 1. Cek Data Non-Numerik (Penyebab Error)
+        all_cols = data.columns
         numeric_cols = data.select_dtypes(include=np.number).columns
+        non_numeric_cols = list(set(all_cols) - set(numeric_cols))
 
-        st.subheader("1. Cek Missing Value & Duplikat")
-        col1, col2 = st.columns(2)
-        col1.metric("Missing Value", data.isnull().sum().sum())
-        col2.metric("Duplikat", data.duplicated().sum())
+        st.subheader("1. Cek Kualitas Data")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Missing Value", data.isnull().sum().sum())
+        c2.metric("Duplikat", data.duplicated().sum())
+        c3.metric("Kolom Non-Angka", len(non_numeric_cols))
+        
+        # Tampilkan peringatan jika ada kolom teks
+        if len(non_numeric_cols) > 0:
+            st.warning(f"⚠️ Ditemukan kolom Teks yang tidak bisa diproses SVM: {non_numeric_cols}")
+            st.info("Sistem akan otomatis mengabaikan kolom tersebut saat modeling.")
 
         st.divider()
         st.subheader("2. Penanganan Outlier (IQR Capping)")
-        st.info("Metode IQR mengganti nilai ekstrim dengan batas atas/bawah yang wajar.")
 
         # --- HITUNG OUTLIER SEBELUM ---
         outlier_before = {}
@@ -225,22 +234,22 @@ elif menu == "🧹 Preprocessing":
         compare_df = pd.DataFrame({
             "Kolom": outlier_before.keys(),
             "Outlier Awal": outlier_before.values(),
-            "Outlier Akhir": [0]*len(outlier_before) # Karena sudah di-cap, dianggap 0
+            "Outlier Akhir": [0]*len(outlier_before) 
         })
         st.dataframe(compare_df.T)
 
         # --- VISUALISASI PERBANDINGAN ---
         st.write("**Visualisasi Perubahan (Before vs After):**")
-        col_viz = st.selectbox("Pilih Fitur untuk dilihat:", [c for c in numeric_cols])
+        col_viz = st.selectbox("Pilih Fitur:", numeric_cols)
         
-        c1, c2 = st.columns(2)
-        with c1:
-            st.caption("🔴 Sebelum (Original)")
+        c_viz1, c_viz2 = st.columns(2)
+        with c_viz1:
+            st.caption("🔴 Sebelum")
             figA, axA = plt.subplots(figsize=(6,4))
             sns.boxplot(y=data[col_viz], color="salmon", ax=axA)
             st.pyplot(figA)
-        with c2:
-            st.caption("🟢 Sesudah (Cleaned)")
+        with c_viz2:
+            st.caption("🟢 Sesudah")
             figB, axB = plt.subplots(figsize=(6,4))
             sns.boxplot(y=capped_data[col_viz], color="lightgreen", ax=axB)
             st.pyplot(figB)
@@ -249,24 +258,39 @@ elif menu == "🧹 Preprocessing":
         st.subheader("3. Pemisahan Fitur & Target")
         
         # Auto-detect Target
-        all_cols = list(capped_data.columns)
-        default_idx = all_cols.index('Outcome') if 'Outcome' in all_cols else len(all_cols) - 1
-        target_col = st.selectbox("Pilih Kolom Target (Label):", all_cols, index=default_idx)
+        # PERBAIKAN: Pastikan pilihan target juga mencakup kolom teks (siapa tau targetnya teks kayak 'Yes'/'No')
+        target_col = st.selectbox("Pilih Kolom Target (Label):", all_cols, index=len(all_cols)-1)
 
         if st.button("Simpan Data & Lanjut Modeling"):
-            X = capped_data.drop(columns=[target_col])
+            # PERBAIKAN CRITICAL: FILTER HANYA ANGKA UNTUK FITUR (X)
+            # 1. Pisahkan X sementara
+            X_temp = capped_data.drop(columns=[target_col])
+            
+            # 2. Ambil HANYA kolom angka dari X
+            X = X_temp.select_dtypes(include=[np.number])
+            
+            # 3. Ambil y
             y = capped_data[target_col]
 
-            # Pastikan Y integer agar Stratify aman
-            try: y = y.astype(int)
-            except: pass
+            # 4. Validasi y (Target)
+            # Jika targetnya teks (misal "Positif"/"Negatif"), kita ubah jadi angka 1/0
+            if y.dtype == 'object':
+                try:
+                    y = y.astype('category').cat.codes
+                    st.info(f"Label target '{target_col}' berupa teks, otomatis dikonversi jadi angka.")
+                except:
+                    pass
+            else:
+                # Jika target angka tapi float, bulatkan jadi int biar aman buat klasifikasi
+                try: y = y.astype(int)
+                except: pass
 
             st.session_state['X'] = X
             st.session_state['y'] = y
             st.session_state['clean_data'] = capped_data
             
-            st.success("✅ Data tersimpan! Siap untuk modeling.")
-
+            st.success(f"✅ Data tersimpan! Kolom teks pada fitur (X) otomatis dibuang agar tidak error.")
+            st.write(f"Fitur yang dipakai ({X.shape[1]} kolom): {list(X.columns)}")
 # ===============================
 # D. MODELING
 # ===============================

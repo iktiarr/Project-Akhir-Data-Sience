@@ -1,0 +1,86 @@
+# ===============================
+# C. PREPROCESSING
+# ===============================
+elif menu == "🧹 Preprocessing":
+    st.title("🧹 Data Preprocessing")
+
+    if "data" not in st.session_state:
+        st.warning("⚠️ Data belum ada.")
+    else:
+        data = st.session_state["data"].copy()
+        numeric_cols = data.select_dtypes(include=np.number).columns
+
+        st.subheader("1. Cek Missing Value & Duplikat")
+        col1, col2 = st.columns(2)
+        col1.metric("Missing Value", data.isnull().sum().sum())
+        col2.metric("Duplikat", data.duplicated().sum())
+
+        st.divider()
+        st.subheader("2. Penanganan Outlier (IQR Capping)")
+        st.info("Metode IQR mengganti nilai ekstrim dengan batas atas/bawah yang wajar.")
+
+        # --- HITUNG OUTLIER SEBELUM ---
+        outlier_before = {}
+        for col in numeric_cols:
+            Q1 = data[col].quantile(0.25)
+            Q3 = data[col].quantile(0.75)
+            IQR = Q3 - Q1
+            outlier_before[col] = ((data[col] < (Q1 - 1.5*IQR)) | (data[col] > (Q3 + 1.5*IQR))).sum()
+        
+        # --- PROSES CAPPING ---
+        capped_data = data.copy()
+        for col in numeric_cols:
+            Q1 = capped_data[col].quantile(0.25)
+            Q3 = capped_data[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
+            capped_data[col] = np.where(capped_data[col] < lower, lower, 
+                               np.where(capped_data[col] > upper, upper, capped_data[col]))
+
+        # --- TAMPILKAN TABEL PERBANDINGAN JUMLAH OUTLIER ---
+        st.write("**Jumlah Outlier Terdeteksi (Sebelum vs Sesudah):**")
+        compare_df = pd.DataFrame({
+            "Kolom": outlier_before.keys(),
+            "Outlier Awal": outlier_before.values(),
+            "Outlier Akhir": [0]*len(outlier_before) # Karena sudah di-cap, dianggap 0
+        })
+        st.dataframe(compare_df.T)
+
+        # --- VISUALISASI PERBANDINGAN ---
+        st.write("**Visualisasi Perubahan (Before vs After):**")
+        col_viz = st.selectbox("Pilih Fitur untuk dilihat:", [c for c in numeric_cols])
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("🔴 Sebelum (Original)")
+            figA, axA = plt.subplots(figsize=(6,4))
+            sns.boxplot(y=data[col_viz], color="salmon", ax=axA)
+            st.pyplot(figA)
+        with c2:
+            st.caption("🟢 Sesudah (Cleaned)")
+            figB, axB = plt.subplots(figsize=(6,4))
+            sns.boxplot(y=capped_data[col_viz], color="lightgreen", ax=axB)
+            st.pyplot(figB)
+
+        st.divider()
+        st.subheader("3. Pemisahan Fitur & Target")
+        
+        # Auto-detect Target
+        all_cols = list(capped_data.columns)
+        default_idx = all_cols.index('Outcome') if 'Outcome' in all_cols else len(all_cols) - 1
+        target_col = st.selectbox("Pilih Kolom Target (Label):", all_cols, index=default_idx)
+
+        if st.button("Simpan Data & Lanjut Modeling"):
+            X = capped_data.drop(columns=[target_col])
+            y = capped_data[target_col]
+
+            # Pastikan Y integer agar Stratify aman
+            try: y = y.astype(int)
+            except: pass
+
+            st.session_state['X'] = X
+            st.session_state['y'] = y
+            st.session_state['clean_data'] = capped_data
+            
+            st.success("✅ Data tersimpan! Siap untuk modeling.")
