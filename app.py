@@ -1,25 +1,34 @@
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import io
-import numpy as np
-import pickle
+import streamlit as st  #  antarmuka website dashboard
+import pandas as pd     # Untuk membaca file
+import matplotlib.pyplot as plt # Untuk membuat grafik visualisasi dasar
+import seaborn as sns   # Untuk membuat grafik statistik
+import io               # Mengelola file di memori
+import numpy as np      # Untuk operasi matematika numerik dan array
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.decomposition import PCA
+# --- Pustaka Machine Learning (Scikit-Learn) ---
+
+from sklearn.model_selection import train_test_split # Membagi dataset menjadi data latih (train) dan uji (test)
+from sklearn.preprocessing import StandardScaler     # Menyamakan skala data agar performa SVM optimal
+from sklearn.svm import SVC                          # Algoritma Support Vector Classifier yang digunakan
+from sklearn.decomposition import PCA                # Meringkas dimensi data untuk keperluan visualisasi 2D
+
+# --- Pustaka Evaluasi Model ---
 from sklearn.metrics import (
-    accuracy_score, confusion_matrix, classification_report, 
-    roc_curve, auc, precision_score, recall_score
+    accuracy_score,         # Menghitung persentase ketepatan prediksi model
+    confusion_matrix,       # Matriks untuk melihat detail kesalahan prediksi (Positif/Negatif)
+    classification_report,  # Laporan lengkap mencakup Presisi, Recall, dan F1-Score
+    roc_curve,              # Menghitung kurva ROC untuk analisis performa klasifikasi
+    auc,                    # Skor Area Under Curve (kualitas model secara keseluruhan)
+    precision_score,        # Mengukur seberapa akurat saat memprediksi kelas positif
+    recall_score            # Mengukur seberapa banyak data positif asli yang berhasil ditebak
 )
-from sklearn.inspection import permutation_importance
+
+from sklearn.inspection import permutation_importance # Menghitung fitur mana yang paling berpengaruh terhadap hasil
 
 # ===============================
 # 1. KONFIGURASI HALAMAN
 # ===============================
-st.set_page_config(
+st.set_page_config(                                 #untuk judul halaman dan layout
     page_title="Dashboard SVM Diabetes Lengkap",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -43,7 +52,7 @@ FILE_DEFAULT = "data_diabetes.xlsx"
 # ===============================
 # 2. FUNGSI LOAD DATA
 # ===============================
-@st.cache_data
+@st.cache_data                      # Cache agar tidak load ulang terus
 def load_data(uploaded_file):
     try:
         filename = uploaded_file.name.lower()
@@ -89,6 +98,11 @@ menu = st.sidebar.radio(
     ["📘 Business Understanding", "📊 Data Understanding", "🧹 Preprocessing", "🤖 Modeling", "📈 Evaluasi"]
 )
 
+
+
+
+
+
 # ===============================
 # A. BUSINESS UNDERSTANDING
 # ===============================
@@ -113,6 +127,11 @@ if menu == "📘 Business Understanding":
     if df is not None:
         st.success("✅ Data siap! Silakan lanjut ke menu berikutnya.")
 
+
+
+
+
+
 # ===============================
 # B. DATA UNDERSTANDING
 elif menu == "📊 Data Understanding":
@@ -123,7 +142,7 @@ elif menu == "📊 Data Understanding":
 
         with tab1:
             st.subheader("1. Cuplikan Data")
-            st.dataframe(df.head())
+            st.dataframe(df.head)
 
             st.subheader("2. Informasi Dataset")
             col1, col2 = st.columns(2)
@@ -191,6 +210,11 @@ elif menu == "📊 Data Understanding":
                 st.warning("Data numerik kurang.")
     else:
         st.error("Data belum dimuat.")
+
+
+
+
+
 
 # ===============================
 # C. PREPROCESSING
@@ -300,6 +324,11 @@ elif menu == "🧹 Preprocessing":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
+
+
+
+
+
 # ===============================
 # D. MODELING
 # ===============================
@@ -394,6 +423,9 @@ elif menu == "🤖 Modeling":
             sns.scatterplot(data=pca_df, x='PC1', y='PC2', hue='Target', palette='viridis', ax=ax_pca)
             ax_pca.set_title("Proyeksi Data 2D (PCA)")
             st.pyplot(fig_pca)
+
+
+
 
 
 # ===============================
