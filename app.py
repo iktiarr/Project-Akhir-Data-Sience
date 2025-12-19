@@ -182,23 +182,6 @@ elif menu == "📊 Data Understanding":
                 sns.boxplot(x=df[sel_col], ax=ax2, color="cyan")
                 ax2.set_title(f"Boxplot {sel_col}")
                 st.pyplot(fig2)
-            
-            st.divider()
-            # Pie Chart Target
-            st.subheader("Proporsi Target")
-            # Coba cari kolom target otomatis
-            possible_target = 'Outcome' if 'Outcome' in df.columns else df.columns[-1]
-            target_counts = df[possible_target].value_counts()
-            
-            fig3, ax3 = plt.subplots(figsize=(4,4))
-            ax3.pie(target_counts, labels=target_counts.index, autopct='%1.1f%%', colors=['#ff9999','#66b3ff'])
-            st.pyplot(fig3)
-
-            st.write(f"**Violin Plot {sel_col}**")
-            fig2, ax2 = plt.subplots()
-            sns.violinplot(y=df[sel_col], color="cyan", ax=ax2)
-            ax2.set_title(f"Kepadatan Data {sel_col}")
-            st.pyplot(fig2)
 
         with tab3:
             st.subheader("Heatmap Korelasi")
