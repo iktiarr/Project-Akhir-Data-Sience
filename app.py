@@ -142,7 +142,7 @@ elif menu == "📊 Data Understanding":
 
         with tab1:
             st.subheader("1. Cuplikan Data")
-            st.dataframe(df.head)
+            st.dataframe(df)
 
             st.subheader("2. Informasi Dataset")
             col1, col2 = st.columns(2)
