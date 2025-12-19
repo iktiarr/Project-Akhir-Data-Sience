@@ -447,8 +447,6 @@ elif menu == "📈 Evaluasi":
             cm = confusion_matrix(y_test, y_pred)
             fig_cm, ax_cm = plt.subplots(figsize=(5, 4))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax_cm)
-            ax_cm.set_ylabel("Aktual")
-            ax_cm.set_xlabel("Prediksi")
             st.pyplot(fig_cm)
         
         with col_t:
