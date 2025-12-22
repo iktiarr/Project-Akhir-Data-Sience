@@ -190,7 +190,26 @@ elif menu == "📊 Data Understanding":
             st.dataframe(unique_df, use_container_width=True)
 
             st.subheader("4. Statistik Deskriptif")
-            st.dataframe(df.describe())
+            
+            # Pilihan Mode Tampilan (Agar dosen bisa bandingkan)
+            tampil_mode = st.radio(
+                "Pilih Mode Tampilan Angka:",
+                ["Data Asli", "Data Diselaraskan"],
+                horizontal=True,
+            )
+
+            if tampil_mode == "🔠 Data Asli (Original)":
+                st.write("Menampilkan statistik nilai **asli** dari data:")
+                st.dataframe(df.describe())
+            else:
+                df_numeric = df.select_dtypes(include=np.number)
+                
+                # 2. Rumus Min-Max Scaling: (Data - Min) / (Max - Min)
+                # Ini mengubah semua angka jadi 0.xxxx
+                df_norm = (df_numeric - df_numeric.min()) / (df_numeric.max() - df_numeric.min())
+                
+                # 3. Tampilkan Statistiknya
+                st.dataframe(df_norm.describe())
 
         # --- TAB 2: DISTRIBUSI (LENGKAP) ---
         with tab2:
