@@ -157,7 +157,7 @@ if menu == "📘 Business Understanding":
 
 
 # ===============================
-# B. DATA UNDERSTANDING (COMBO LENGKAP: HIST + BOX + VIOLIN)
+# B. DATA UNDERSTANDING
 # ===============================
 elif menu == "📊 Data Understanding":
     st.title("📊 Data Understanding")
@@ -165,10 +165,23 @@ elif menu == "📊 Data Understanding":
     if df is not None:
         tab1, tab2, tab3 = st.tabs(["📄 Data & Statistik", "📊 Visualisasi Distribusi", "💡 Insight Hubungan"])
 
-        # --- TAB 1: DATA MENTAH & STATISTIK ---
         with tab1:
-            st.subheader("1. Dataset Lengkap")
-            st.dataframe(df)
+            st.subheader("1. Tinjauan Dataset")
+            tampil_mode = st.radio(
+                "Pilih Mode Tampilan Angka:",
+                ["🔠 Data Asli", "🔢 Data Diselaraskan"],
+                horizontal=True,
+            )
+
+            if tampil_mode == "🔠 Data Asli":
+                df_display = df.copy()
+                keterangan = "Menampilkan data dengan nilai asli sesuai dataset."
+            else:
+                df_display = df.copy()
+                numeric_cols = df.select_dtypes(include=np.number).columns
+                df_display[numeric_cols] = (df[numeric_cols] - df[numeric_cols].min()) / (df[numeric_cols].max() - df[numeric_cols].min())
+            st.dataframe(df_display)
+            st.divider()
 
             st.subheader("2. Informasi Dataset")
             c1, c2 = st.columns(2)
@@ -180,7 +193,7 @@ elif menu == "📊 Data Understanding":
             with st.expander("Lihat Detail Tipe Data (Info)"):
                 st.text(buffer.getvalue())
 
-            st.subheader("3. Nilai Unik & Statistik")
+            st.subheader("3. Nilai Unik")
             unique_df = pd.DataFrame({
                 "Nama Kolom": df.columns,
                 "Tipe Data": df.dtypes.astype(str),
@@ -189,27 +202,14 @@ elif menu == "📊 Data Understanding":
             })
             st.dataframe(unique_df, use_container_width=True)
 
-            st.subheader("4. Statistik Deskriptif")
-            
-            # Pilihan Mode Tampilan (Agar dosen bisa bandingkan)
-            tampil_mode = st.radio(
-                "Pilih Mode Tampilan Angka:",
-                ["Data Asli", "Data Diselaraskan"],
-                horizontal=True,
-            )
+            st.divider()
 
-            if tampil_mode == "🔠 Data Asli (Original)":
-                st.write("Menampilkan statistik nilai **asli** dari data:")
-                st.dataframe(df.describe())
-            else:
-                df_numeric = df.select_dtypes(include=np.number)
-                
-                # 2. Rumus Min-Max Scaling: (Data - Min) / (Max - Min)
-                # Ini mengubah semua angka jadi 0.xxxx
-                df_norm = (df_numeric - df_numeric.min()) / (df_numeric.max() - df_numeric.min())
-                
-                # 3. Tampilkan Statistiknya
-                st.dataframe(df_norm.describe())
+            # --- TAMPILAN 3: STATISTIK DESKRIPTIF ---
+            st.subheader("4. Statistik Deskriptif")
+            st.write(f"**Ringkasan Statistik ({tampil_mode})**")
+            
+            # Ini juga otomatis berubah karena menggunakan 'df_display'
+            st.dataframe(df_display.describe())
 
         # --- TAB 2: DISTRIBUSI (LENGKAP) ---
         with tab2:
