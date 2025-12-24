@@ -576,20 +576,22 @@ elif menu == "🤖 Modeling":
 
 
 # ===============================
-# E. EVALUASI & PREDIKSI (4 TAB TERPISAH)
+# E. EVALUASI & PREDIKSI (FIX DETEKSI OTOMATIS)
 # ===============================
 elif menu == "📈 Evaluasi":
-    st.title("📈 Evaluasi")
+    st.title("📈 Evaluasi & Simulasi Prediksi")
 
     if "model" not in st.session_state:
         st.warning("⚠️ Belum ada model. Silakan lakukan Training dulu di menu '4. Pembuatan Model'.")
     else:
+        # Ambil data
         y_test = st.session_state["y_test"]
         y_pred = st.session_state["y_pred"]
         model = st.session_state["model"]
         X_test_scaled = st.session_state["X_test_scaled"]
         X_test_raw = st.session_state["X_test_raw"]
 
+        # --- 4 TAB UTAMA ---
         tab1, tab2, tab3, tab4 = st.tabs([
             "📊 Performa Model", 
             "🟦 Confusion Matrix", 
@@ -597,110 +599,109 @@ elif menu == "📈 Evaluasi":
             "🤖 Simulasi Cek Kesehatan"
         ])
 
+        # === TAB 1: PERFORMA ===
         with tab1:
             st.subheader("Skor Kualitas Model")
-            st.info("Angka ini menunjukkan seberapa pintar komputer dalam memprediksi penyakit.")
-            
             acc = accuracy_score(y_test, y_pred)
             prec = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-            
             c1, c2 = st.columns(2)
-            c1.metric("Akurasi (Ketepatan Total)", f"{acc*100:.2f}%", help="Persentase total tebakan yang benar.")
-            c2.metric("Presisi (Tingkat Kepercayaan)", f"{prec*100:.2f}%", help="Seberapa akurat saat komputer bilang 'Sakit'.")
+            c1.metric("Akurasi", f"{acc*100:.2f}%")
+            c2.metric("Presisi", f"{prec*100:.2f}%")
 
+        # === TAB 2: CONFUSION MATRIX ===
         with tab2:
-            st.subheader("Matriks Kebingungan (Confusion Matrix)")
-            st.caption("Tabel ini menunjukkan detail berapa kali komputer menebak benar dan salah.")
-            
+            st.subheader("Matriks Kebingungan")
             cm = confusion_matrix(y_test, y_pred)
             fig_cm, ax_cm = plt.subplots(figsize=(6, 4))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax_cm)
-            ax_cm.set_xlabel("Prediksi Model")
-            ax_cm.set_ylabel("Data Asli")
-            ax_cm.set_title("Warna makin gelap = Jumlah makin banyak")
             st.pyplot(fig_cm)
 
+        # === TAB 3: KURVA ROC ===
         with tab3:
             st.subheader("Kurva ROC")
-            st.caption("Grafik ini menilai kemampuan membedakan antara Pasien Sehat dan Sakit. Semakin kurva melengkung ke kiri atas, semakin bagus.")
-            
             if hasattr(model, "predict_proba"):
                 try:
                     y_proba = model.predict_proba(X_test_scaled)[:, 1]
                     fpr, tpr, _ = roc_curve(y_test, y_proba)
                     roc_auc = auc(fpr, tpr)
-                    
                     fig_roc, ax_roc = plt.subplots(figsize=(6, 4))
-                    ax_roc.plot(fpr, tpr, color='orange', lw=2, label=f'Skor AUC = {roc_auc:.2f}')
+                    ax_roc.plot(fpr, tpr, color='orange', lw=2, label=f'AUC = {roc_auc:.2f}')
                     ax_roc.plot([0, 1], [0, 1], color='navy', linestyle='--')
                     ax_roc.legend()
-                    ax_roc.set_xlabel("Tingkat Kesalahan (False Positive)")
-                    ax_roc.set_ylabel("Tingkat Kebenaran (True Positive)")
                     st.pyplot(fig_roc)
                 except:
-                    st.info("Kurva tidak tersedia untuk data ini.")
+                    st.info("Kurva tidak tersedia.")
             else:
-                st.info("Model ini tidak mendukung pembuatan Kurva ROC.")
+                st.info("Model tidak mendukung ROC.")
 
+        # === TAB 4: SIMULASI (LOGIKA DETEKSI KATA KUNCI) ===
         with tab4:
             st.subheader("Simulasi Diagnosa Mandiri")
-            st.info("Masukkan data klinis pasien di bawah ini untuk melihat hasil prediksi AI.")
+            st.info("Masukkan data klinis pasien di bawah ini.")
 
-            cols_name = X_test_raw.columns.tolist()
-            is_diabetes = 'Glucose' in cols_name and 'BMI' in cols_name
-
-            label_map = {
-                "Pregnancies": "Jumlah Kehamilan (Kali)",
-                "Glucose": "Gula Darah / Glukosa (mg/dL)",
-                "BloodPressure": "Tekanan Darah (mm Hg)",
-                "SkinThickness": "Ketebalan Kulit (mm)",
-                "Insulin": "Insulin (mu U/ml)",
-                "BMI": "Indeks Massa Tubuh (BMI)",
-                "DiabetesPedigreeFunction": "Skor Genetik (0.0 - 2.5)", 
-                "Age": "Usia (Tahun)"
-            }
-            help_map = {
-                "Glucose": "Normal: <140, Diabetes: >200",
-                "BMI": "Normal: 18.5 - 24.9, Obesitas: >30",
-                "DiabetesPedigreeFunction": "Semakin tinggi skor, semakin besar risiko turunan keluarga."
-            }
-
-            with st.form(key='form_simulasi'):
+            with st.form(key='form_simulasi_smart'):
                 input_data = {}
-                cols = st.columns(3)
+                cols = st.columns(3) 
                 
+                # Kita looping kolom, tapi cek isinya pakai "Kata Kunci"
+                # Biar mau bahasa Indo/Inggris tetap terdeteksi
                 for i, col in enumerate(X_test_raw.columns):
+                    col_lower = col.lower() # Ubah nama kolom jadi huruf kecil semua biar gampang dicek
+                    
                     with cols[i % 3]:
-                        label_txt = label_map.get(col, col) if is_diabetes else col
-                        mean_val = float(X_test_raw[col].mean())
-                        min_val = float(X_test_raw[col].min())
-                        max_val = float(X_test_raw[col].max())
-                        helper = help_map.get(col, f"Range Data: {min_val:.1f} - {max_val:.1f}")
-                        input_data[col] = st.number_input(
-                            label=f"**{label_txt}**",
-                            min_value=0.0,
-                            value=mean_val,
-                            format="%.3f" if col == "DiabetesPedigreeFunction" else "%.2f",
-                            help=helper
-                        )
-                        st.caption(f"ℹ️ {helper}")
+                        
+                        # --- 1. LOGIKA GENETIK (Cari kata 'genetik' atau 'pedigree') ---
+                        # Ini yang membuat jadi RADIO BUTTON
+                        if 'genetik' in col_lower or 'pedigree' in col_lower:
+                            # Pilihan Radio Button 0 atau 1
+                            pilihan = st.radio(
+                                f"**{col}**", 
+                                [0, 1], 
+                                index=0,
+                                format_func=lambda x: "0 (Tidak Ada)" if x == 0 else "1 (Ada Riwayat)",
+                                help="Pilih 1 jika ada riwayat keluarga."
+                            )
+                            input_data[col] = float(pilihan)
 
+                        # --- 2. LOGIKA UMUR & HAMIL (Cari kata 'age', 'usia', 'umur', 'hamil', 'pregnan') ---
+                        # Ini membuat jadi ANGKA BULAT (Tidak ada koma 3,50)
+                        elif any(x in col_lower for x in ['age', 'usia', 'umur', 'hamil', 'pregnan']):
+                            mean_val = int(X_test_raw[col].mean())
+                            input_data[col] = st.number_input(
+                                label=f"**{col}**",
+                                min_value=0,
+                                step=1,        # Wajib loncat 1 (bulat)
+                                value=mean_val,
+                                format="%d"    # Format Integer (tanpa koma)
+                            )
+                            
+                        # --- 3. STANDAR (Gula, BMI, Tensi, dll) ---
+                        else:
+                            mean_val = float(X_test_raw[col].mean())
+                            input_data[col] = st.number_input(
+                                label=f"**{col}**",
+                                min_value=0.0,
+                                value=mean_val,
+                                format="%.2f"  # Boleh koma
+                            )
+                        
+                        st.write("") 
+
+                st.markdown("---")
                 tombol_prediksi = st.form_submit_button("🔍 Analisa Risiko Sekarang", use_container_width=True)
 
+            # Logika Prediksi
             if tombol_prediksi:
                 scaler = st.session_state['scaler']
                 input_df = pd.DataFrame([input_data])
                 input_scaled = scaler.transform(input_df)
-                hasil = model.predict(input_scaled)[0]
-                if hasil == 1:
-                    if is_diabetes:
-                        st.error("🚨 **HASIL: TERINDIKASI DIABETES**")
-                        st.write("Sistem memprediksi pasien memiliki risiko tinggi. Disarankan pemeriksaan lanjut ke dokter.")
-                    else:
-                        st.error("🚨 **HASIL: POSITIF (KELAS 1)**")
+                
+                hasil_kelas = model.predict(input_scaled)[0]
+                
+                st.divider()
+                if hasil_kelas == 1:
+                    st.error("🚨 **HASIL PREDIKSI: BERISIKO (POSITIF)**")
+                    st.write("Sistem mendeteksi indikasi diabetes. Disarankan konsultasi dokter.")
                 else:
-                    if is_diabetes:
-                        st.success("✅ **HASIL: SEHAT (NORMAL)**")
-                        st.write("Sistem memprediksi pasien dalam kondisi aman.")
-                    else:
-                        st.success("✅ **HASIL: NEGATIF (KELAS 0)**")
+                    st.success("✅ **HASIL PREDIKSI: SEHAT (NEGATIF)**")
+                    st.write("Sistem memprediksi kondisi aman.")
